@@ -141,6 +141,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') performSearch();
     });
 
+    function isValidUrl(string) {
+        try {
+            const url = new URL(string);
+            return url.protocol === "http:" || url.protocol === "https:";
+        } catch (_) {
+            return false;
+        }
+    }
+
     function renderResults(files) {
         resultsBody.innerHTML = '';
         if (files.length === 0) {
@@ -168,18 +177,82 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsBody.appendChild(tr);
         });
 
-        // Add copy listeners
-        document.querySelectorAll('.copy-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const url = e.currentTarget.getAttribute('data-url');
+            // --- Filename Cell ---
+            const tdFilename = document.createElement('td');
+            const aFilename = document.createElement('a');
+            aFilename.target = "_blank";
+            aFilename.className = "text-light text-decoration-none";
+            aFilename.textContent = file.filename; // SAFE: textContent used instead of innerHTML
+
+            if (isValidUrl(file.url)) {
+                aFilename.href = file.url;
+            } else {
+                aFilename.href = '#';
+                aFilename.title = 'Invalid URL';
+                aFilename.onclick = (e) => e.preventDefault();
+            }
+
+            tdFilename.appendChild(aFilename);
+            tr.appendChild(tdFilename);
+
+            // --- Extension Cell ---
+            const tdExt = document.createElement('td');
+            const spanExt = document.createElement('span');
+            spanExt.className = "badge bg-secondary";
+            spanExt.textContent = file.extension; // SAFE: textContent
+            tdExt.appendChild(spanExt);
+            tr.appendChild(tdExt);
+
+            // --- Depth Cell ---
+            const tdDepth = document.createElement('td');
+            tdDepth.textContent = file.depth; // SAFE: textContent
+            tr.appendChild(tdDepth);
+
+            // --- Action Cell ---
+            const tdAction = document.createElement('td');
+            tdAction.className = "text-end";
+
+            // Copy Button
+            const btnCopy = document.createElement('button');
+            btnCopy.className = "btn btn-sm btn-outline-warning copy-btn";
+            btnCopy.setAttribute('data-url', file.url);
+
+            const iconCopy = document.createElement('i');
+            iconCopy.className = "fas fa-copy";
+            btnCopy.appendChild(iconCopy);
+
+            // Add event listener directly
+            btnCopy.addEventListener('click', () => {
+                const url = file.url;
                 navigator.clipboard.writeText(url).then(() => {
-                    const icon = e.currentTarget.querySelector('i');
-                    icon.className = 'fas fa-check';
+                    iconCopy.className = 'fas fa-check';
                     setTimeout(() => {
-                        icon.className = 'fas fa-copy';
+                        iconCopy.className = 'fas fa-copy';
                     }, 1000);
                 });
             });
+
+            tdAction.appendChild(btnCopy);
+
+            // Download Button
+            const btnDownload = document.createElement('a');
+            btnDownload.className = "btn btn-sm btn-primary ms-1";
+            btnDownload.setAttribute('download', '');
+
+            if (isValidUrl(file.url)) {
+                btnDownload.href = file.url;
+            } else {
+                btnDownload.href = '#';
+                btnDownload.onclick = (e) => e.preventDefault();
+            }
+
+            const iconDownload = document.createElement('i');
+            iconDownload.className = "fas fa-download";
+            btnDownload.appendChild(iconDownload);
+            tdAction.appendChild(btnDownload);
+
+            tr.appendChild(tdAction);
+            resultsBody.appendChild(tr);
         });
     }
 

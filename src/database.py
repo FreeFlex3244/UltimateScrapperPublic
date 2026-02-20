@@ -9,6 +9,7 @@ class Database:
         self.conn = None
         self.connect()
         self.create_table()
+        self.create_indexes()
 
     def connect(self):
         try:
@@ -35,6 +36,20 @@ class Database:
             self.conn.commit()
         except sqlite3.Error as e:
             print(f"Error creating table: {e}")
+
+    def create_indexes(self):
+        """Creates indexes for frequently queried columns to improve performance."""
+        queries = [
+            "CREATE INDEX IF NOT EXISTS idx_files_extension_timestamp ON files(extension, timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_files_timestamp ON files(timestamp DESC)"
+        ]
+        try:
+            cursor = self.conn.cursor()
+            for query in queries:
+                cursor.execute(query)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error creating indexes: {e}")
 
     def add_file(self, filename, extension, url, source_url, depth):
         query = """
