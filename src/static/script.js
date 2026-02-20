@@ -119,12 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = searchQuery.value;
         const ext = searchExt.value;
 
+        // Loading state
+        searchBtn.disabled = true;
+        const originalContent = searchBtn.innerHTML;
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+
         try {
             const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&ext=${encodeURIComponent(ext)}`);
             const data = await res.json();
             renderResults(data.results);
         } catch (err) {
             console.error(err);
+        } finally {
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = originalContent;
         }
     }
 
@@ -152,6 +160,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         files.forEach(file => {
             const tr = document.createElement('tr');
+            const safeFilename = file.filename.replace(/"/g, '&quot;');
+            tr.innerHTML = `
+                <td><a href="${file.url}" target="_blank" class="text-light text-decoration-none">${file.filename}</a></td>
+                <td><span class="badge bg-secondary">${file.extension}</span></td>
+                <td>${file.depth}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-warning copy-btn" data-url="${file.url}" aria-label="Copy link for ${safeFilename}" title="Copy link">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <a href="${file.url}" class="btn btn-sm btn-primary" download aria-label="Download ${safeFilename}" title="Download file">
+                        <i class="fas fa-download"></i>
+                    </a>
+                </td>
+            `;
+            resultsBody.appendChild(tr);
+        });
 
             // --- Filename Cell ---
             const tdFilename = document.createElement('td');
