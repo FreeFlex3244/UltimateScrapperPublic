@@ -1,0 +1,73 @@
+:root {
+    --bs-body-bg: #121212;
+    --bs-body-color: #e0e0e0;
+    --bs-secondary-bg: #1e1e1e;
+    --bs-border-color: #333;
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    background-color: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+}
+
+.form-control, .form-select {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.form-control:focus {
+    background-color: #2d2d2d;
+    border-color: #DA121A;
+    box-shadow: 0 0 0 0.25rem rgba(218, 18, 26, 0.25);
+    color: #fff;
+}
+
+.catalan-flag {
+    width: 54px; /* 9 * 6px stripes */
+    height: 36px;
+    background: repeating-linear-gradient(
+        180deg,
+        #FFD700 0,
+        #FFD700 11.11%,
+        #DA121A 11.11%,
+        #DA121A 22.22%
+    );
+    border: 1px solid #cfaa00;
+    display: inline-block;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    color: #FFD700 !important;
+}
+
+.btn-warning {
+    background-color: #FFD700;
+    border-color: #FFD700;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background-color: #e6c200;
+    border-color: #e6c200;
+}
+
+.progress-bar.bg-warning {
+    background-color: #FFD700 !important;
+}
+
+.table-dark {
+    --bs-table-bg: #1e1e1e;
+    --bs-table-striped-bg: #2d2d2d;
+}
+
+.text-warning {
+    color: #FFD700 !important;
+}

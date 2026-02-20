@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Community Scraper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-dark text-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-secondary mb-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <div class="catalan-flag me-3"></div>
+                <span class="fw-bold">Community Scraper</span>
+            </a>
+            <span class="navbar-text">
+                Universal Indexer & Search
+            </span>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Scraper Configuration -->
+        <div class="card bg-secondary text-light mb-4 shadow-lg">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-spider me-2"></i>Scraper Configuration</h5>
+                <span id="status-badge" class="badge bg-secondary">Idle</span>
+            </div>
+            <div class="card-body">
+                <form id="scrape-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="url" class="form-label">Target URL</label>
+                            <input type="url" class="form-control bg-dark text-light border-secondary" id="url" placeholder="https://example.com/files/" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="depth" class="form-label">Depth</label>
+                            <input type="number" class="form-control bg-dark text-light border-secondary" id="depth" value="7" min="1" max="20" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="extensions" class="form-label">Extensions (comma separated)</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="extensions" value="zip,iso,rar,7z,mp3,flac" placeholder="zip, iso, mp3" required>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-warning fw-bold text-dark" id="btn-start">
+                            <i class="fas fa-play me-2"></i>Start Indexing
+                        </button>
+                        <button type="button" class="btn btn-danger" id="btn-stop" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop
+                        </button>
+                        <button type="button" class="btn btn-outline-light ms-auto" id="btn-clear">
+                            <i class="fas fa-trash me-2"></i>Clear Database
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-3" id="progress-section" style="display: none;">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span id="status-text">Scanning...</span>
+                        <span>Found: <span id="files-found">0</span></span>
+                    </div>
+                    <div class="progress bg-dark" style="height: 5px;">
+                        <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <div class="small text-muted mt-1 text-truncate" id="current-url"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Results -->
+        <div class="card bg-secondary text-light shadow-lg">
+            <div class="card-header border-0">
+                <h5 class="mb-0"><i class="fas fa-search me-2"></i>Search Database</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-8">
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="search-query" placeholder="Search filenames...">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="search-ext" placeholder="Ext (e.g. zip)">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-info w-100 fw-bold text-dark" id="btn-search">Search</button>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-warning mb-0">Results</h6>
+                    <button class="btn btn-sm btn-outline-warning" id="btn-copy-all">
+                        <i class="fas fa-copy me-2"></i>Copy All Links
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Ext</th>
+                                <th>Depth</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-body">
+                            <!-- Results here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-results" class="text-center py-4 text-muted" style="display: none;">
+                    No files found matching criteria.
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-5 mb-4 text-muted small">
+            <p>Built with <i class="fas fa-heart text-danger"></i> for the Global Community.</p>
+        </footer>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
