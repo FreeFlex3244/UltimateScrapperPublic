@@ -160,22 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         files.forEach(file => {
             const tr = document.createElement('tr');
-            const safeFilename = file.filename.replace(/"/g, '&quot;');
-            tr.innerHTML = `
-                <td><a href="${file.url}" target="_blank" class="text-light text-decoration-none">${file.filename}</a></td>
-                <td><span class="badge bg-secondary">${file.extension}</span></td>
-                <td>${file.depth}</td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-warning copy-btn" data-url="${file.url}" aria-label="Copy link for ${safeFilename}" title="Copy link">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <a href="${file.url}" class="btn btn-sm btn-primary" download aria-label="Download ${safeFilename}" title="Download file">
-                        <i class="fas fa-download"></i>
-                    </a>
-                </td>
-            `;
-            resultsBody.appendChild(tr);
-        });
 
             // --- Filename Cell ---
             const tdFilename = document.createElement('td');
@@ -216,6 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnCopy = document.createElement('button');
             btnCopy.className = "btn btn-sm btn-outline-warning copy-btn";
             btnCopy.setAttribute('data-url', file.url);
+            btnCopy.setAttribute('aria-label', 'Copy link');
+            btnCopy.title = "Copy link";
 
             const iconCopy = document.createElement('i');
             iconCopy.className = "fas fa-copy";
@@ -238,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnDownload = document.createElement('a');
             btnDownload.className = "btn btn-sm btn-primary ms-1";
             btnDownload.setAttribute('download', '');
+            btnDownload.setAttribute('aria-label', 'Download file');
+            btnDownload.title = "Download file";
 
             if (isValidUrl(file.url)) {
                 btnDownload.href = file.url;
