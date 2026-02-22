@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from src.scraper import Scraper
 from src.database import Database
+from src.security import is_safe_url
 import threading
 import os
 
@@ -28,6 +29,9 @@ def start_scrape():
 
     if not url or not depth or not extensions:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+    if not is_safe_url(url):
+        return jsonify({'status': 'error', 'message': 'Invalid or restricted URL'}), 400
 
     scraper_thread = Scraper(url, depth, extensions, db_name=DB_NAME)
     scraper_thread.start()
