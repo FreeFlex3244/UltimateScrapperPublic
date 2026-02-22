@@ -5,6 +5,7 @@ import threading
 import time
 import os
 import sqlite3
+from collections import deque
 from src.database import Database
 from src.security import is_safe_url
 
@@ -18,7 +19,7 @@ class Scraper(threading.Thread):
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
-        self.queue = []
+        self.queue = deque()
         self.status = "Idle"
         self.total_found = 0
         self.current_depth = 0
@@ -56,7 +57,7 @@ class Scraper(threading.Thread):
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.pop(0)
+            url, depth = self.queue.popleft()
             self.current_depth = depth
             self.current_url = url
 
