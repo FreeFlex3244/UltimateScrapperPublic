@@ -24,6 +24,8 @@ class Scraper(threading.Thread):
         self.total_found = 0
         self.current_depth = 0
         self.current_url = ""
+        # Use a session for connection pooling (Keep-Alive)
+        self.session = requests.Session()
 
     def run(self):
         self.status = "Running"
@@ -36,6 +38,7 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            self.session.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -73,7 +76,7 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
