@@ -6,6 +6,7 @@ import time
 import os
 import sqlite3
 from src.database import Database
+from src.security import is_safe_url
 
 class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
@@ -63,6 +64,10 @@ class Scraper(threading.Thread):
             # self.status = f"Depth {depth}: {url}"
 
             if depth > self.max_depth:
+                continue
+
+            if not is_safe_url(url):
+                print(f"Skipping unsafe URL: {url}")
                 continue
 
             try:
