@@ -12,6 +12,8 @@ from src.security import is_safe_url
 class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
         super().__init__()
+        # Use Session for connection pooling/keep-alive
+        self.session = requests.Session()
         self.start_url = start_url
         self.max_depth = int(max_depth)
         # Clean extensions list
@@ -35,6 +37,7 @@ class Scraper(threading.Thread):
             print(f"Scraper error: {e}")
             self.status = f"Error: {e}"
         finally:
+            self.session.close()
             self.db.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
@@ -73,7 +76,7 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
