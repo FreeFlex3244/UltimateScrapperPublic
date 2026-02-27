@@ -29,6 +29,7 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +37,7 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            self.session.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -72,8 +74,25 @@ class Scraper(threading.Thread):
                 continue
 
             try:
-                # Fetch page
-                response = requests.get(url, timeout=10)
+                # Fetch page - disable automatic redirects to validate targets and prevent SSRF
+                response = self.session.get(url, timeout=10, allow_redirects=False)
+
+                # Handle redirects manually
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location:
+                        redirect_url = urljoin(url, location)
+                        parsed_redirect = urlparse(redirect_url)
+                        clean_redirect = parsed_redirect.scheme + "://" + parsed_redirect.netloc + parsed_redirect.path
+                        if parsed_redirect.query:
+                            clean_redirect += "?" + parsed_redirect.query
+
+                        # Increment depth for redirects to prevent infinite redirect loops
+                        if depth < self.max_depth and clean_redirect not in self.visited:
+                            self.visited.add(clean_redirect)
+                            self.queue.append((clean_redirect, depth + 1))
+                    continue
+
                 if response.status_code != 200:
                     continue
 
