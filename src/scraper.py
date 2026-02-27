@@ -24,11 +24,15 @@ class Scraper(threading.Thread):
         self.total_found = 0
         self.current_depth = 0
         self.current_url = ""
+        # Initialize session placeholder
+        self.session = None
 
     def run(self):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # Initialize session for connection pooling
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +40,9 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            if self.session:
+                self.session.close()
+
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -72,8 +79,13 @@ class Scraper(threading.Thread):
                 continue
 
             try:
-                # Fetch page
-                response = requests.get(url, timeout=10)
+                # Fetch page using session for connection pooling
+                if self.session:
+                    response = self.session.get(url, timeout=10)
+                else:
+                    # Fallback if session isn't initialized (e.g. testing without run())
+                    response = requests.get(url, timeout=10)
+
                 if response.status_code != 200:
                     continue
 
