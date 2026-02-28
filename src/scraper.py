@@ -29,12 +29,15 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
             print(f"Scraper error: {e}")
             self.status = f"Error: {e}"
         finally:
+            if hasattr(self, 'session'):
+                self.session.close()
             self.db.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
@@ -73,7 +76,27 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                # Use session for HTTP Keep-Alive performance benefit
+                # Security convention constraint: Handle redirects manually to prevent SSRF
+                response = self.session.get(url, timeout=10, allow_redirects=False)
+
+                # Manually handle redirects as per security convention
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location:
+                        full_loc = urljoin(url, location)
+                        parsed_loc = urlparse(full_loc)
+                        clean_loc = parsed_loc.scheme + "://" + parsed_loc.netloc + parsed_loc.path
+                        if parsed_loc.query:
+                            clean_loc += "?" + parsed_loc.query
+
+                        if clean_loc not in self.visited:
+                            # The security convention specifically mandates validating and enqueuing the Location target
+                            # Let the standard queue processing validate it (e.g. is_safe_url, domain containment)
+                            # rather than duplicating logic here or prematurely filtering.
+                            self.queue.append((clean_loc, depth))
+                    continue
+
                 if response.status_code != 200:
                     continue
 
