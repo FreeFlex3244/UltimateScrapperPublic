@@ -10,9 +10,11 @@ class TestScraper(unittest.TestCase):
         self.scraper = Scraper("http://example.com", 2, "zip,iso")
         # Mock the database connection object
         self.scraper.db = MagicMock()
+        # Mock the requests session object
+        self.scraper.session = MagicMock()
 
-    @patch('src.scraper.requests.get')
-    def test_crawl_depth(self, mock_get):
+    def test_crawl_depth(self):
+        mock_get = self.scraper.session.get
         # Setup mock response content
         def side_effect(url, timeout=10):
             mock_response = MagicMock()
@@ -49,8 +51,8 @@ class TestScraper(unittest.TestCase):
         # call_args_list[0] -> file.zip
         # call_args_list[1] -> file2.iso
 
-    @patch('src.scraper.requests.get')
-    def test_stop(self, mock_get):
+    def test_stop(self):
+        mock_get = self.scraper.session.get
         # Set stop event
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
