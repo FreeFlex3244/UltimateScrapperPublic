@@ -73,7 +73,16 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location:
+                        redirect_url = urljoin(url, location)
+                        if depth <= self.max_depth:
+                            self.queue.append((redirect_url, depth))
+                    continue
+
                 if response.status_code != 200:
                     continue
 
