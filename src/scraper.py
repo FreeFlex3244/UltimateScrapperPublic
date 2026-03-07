@@ -73,7 +73,25 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location:
+                        redirect_url = urljoin(url, location)
+                        parsed_redirect = urlparse(redirect_url)
+                        clean_redirect = parsed_redirect.scheme + "://" + parsed_redirect.netloc + parsed_redirect.path
+                        if parsed_redirect.query:
+                            clean_redirect += "?" + parsed_redirect.query
+
+                        if clean_redirect not in self.visited:
+                            if is_safe_url(clean_redirect):
+                                self.queue.append((clean_redirect, depth))
+                                self.visited.add(clean_redirect)
+                            else:
+                                print(f"Skipping unsafe redirect URL: {clean_redirect}")
+                    continue
+
                 if response.status_code != 200:
                     continue
 

@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=False):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -64,6 +64,28 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect(self, mock_get):
+        # Setup mock response for a redirect
+        def side_effect(url, timeout=10, allow_redirects=False):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                # Redirect to a malicious internal IP
+                mock_response.status_code = 302
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            else:
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = b''
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        self.scraper.crawl()
+
+        # Check that the malicious URL was not added to the queue or visited
+        self.assertNotIn("http://127.0.0.1/admin", self.scraper.visited)
 
 if __name__ == '__main__':
     unittest.main()
