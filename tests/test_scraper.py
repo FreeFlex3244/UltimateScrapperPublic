@@ -11,10 +11,10 @@ class TestScraper(unittest.TestCase):
         # Mock the database connection object
         self.scraper.db = MagicMock()
 
-    @patch('src.scraper.requests.get')
+    @patch('src.scraper.requests.Session.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -49,7 +49,7 @@ class TestScraper(unittest.TestCase):
         # call_args_list[0] -> file.zip
         # call_args_list[1] -> file2.iso
 
-    @patch('src.scraper.requests.get')
+    @patch('src.scraper.requests.Session.get')
     def test_stop(self, mock_get):
         # Set stop event
         self.scraper.stop()
