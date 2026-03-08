@@ -72,8 +72,22 @@ class Scraper(threading.Thread):
                 continue
 
             try:
-                # Fetch page
-                response = requests.get(url, timeout=10)
+                # Fetch page without following redirects automatically
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                # Handle redirects manually to prevent SSRF bypass
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location:
+                        redirect_url = urljoin(url, location)
+                        # Ensure we don't exceed depth
+                        if depth < self.max_depth:
+                            if is_safe_url(redirect_url):
+                                self.queue.append((redirect_url, depth))
+                            else:
+                                print(f"Skipping unsafe redirect URL: {redirect_url}")
+                    continue
+
                 if response.status_code != 200:
                     continue
 
