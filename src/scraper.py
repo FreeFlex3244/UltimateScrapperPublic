@@ -53,11 +53,16 @@ class Scraper(threading.Thread):
 
     def crawl(self):
         # BFS
-        self.queue.append((self.start_url, 0))
+        self.queue.append((self.start_url, 0, 0)) # url, depth, redirect_count
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.popleft()
+            item = self.queue.popleft()
+            if len(item) == 3:
+                url, depth, redirect_count = item
+            else:
+                url, depth = item
+                redirect_count = 0
             self.current_depth = depth
             self.current_url = url
 
@@ -73,7 +78,22 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                # Handle redirects safely to prevent SSRF
+                if response.status_code in (301, 302, 303, 307, 308):
+                    if redirect_count < 10:  # Max 10 redirects per request chain
+                        redirect_url = response.headers.get('Location')
+                        if redirect_url:
+                            # Normalize redirect URL
+                            full_redirect_url = urljoin(url, redirect_url)
+                            if is_safe_url(full_redirect_url) and full_redirect_url not in self.visited:
+                                self.visited.add(full_redirect_url)
+                                self.queue.append((full_redirect_url, depth, redirect_count + 1))
+                    else:
+                        print(f"Max redirects reached for: {url}")
+                    continue
+
                 if response.status_code != 200:
                     continue
 
@@ -114,7 +134,7 @@ class Scraper(threading.Thread):
                         if depth < self.max_depth:
                             if parsed_full.netloc == urlparse(self.start_url).netloc:
                                 self.visited.add(clean_url)
-                                self.queue.append((clean_url, depth + 1))
+                                self.queue.append((clean_url, depth + 1, 0))
 
                 # Sleep slightly to be nice
                 time.sleep(0.1)
