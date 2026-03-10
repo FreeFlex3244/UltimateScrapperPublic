@@ -11,10 +11,10 @@ class TestScraper(unittest.TestCase):
         # Mock the database connection object
         self.scraper.db = MagicMock()
 
-    @patch('src.scraper.requests.get')
+    @patch('src.scraper.requests.Session.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -35,8 +35,10 @@ class TestScraper(unittest.TestCase):
 
         mock_get.side_effect = side_effect
 
-        # Call crawl directly (bypassing run() which sets up DB)
-        # We manually set self.db in setUp
+        # Call crawl directly (bypassing run() which sets up DB and Session)
+        # We manually set self.db and self.session in setUp
+        self.scraper.session = MagicMock()
+        self.scraper.session.get = mock_get
         self.scraper.crawl()
 
         # Check that add_file was called
@@ -49,10 +51,12 @@ class TestScraper(unittest.TestCase):
         # call_args_list[0] -> file.zip
         # call_args_list[1] -> file2.iso
 
-    @patch('src.scraper.requests.get')
+    @patch('src.scraper.requests.Session.get')
     def test_stop(self, mock_get):
         # Set stop event
         self.scraper.stop()
+        self.scraper.session = MagicMock()
+        self.scraper.session.get = mock_get
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
