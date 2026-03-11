@@ -1,0 +1,3 @@
+## 2026-03-10 - Connection Pooling in Scraper threads
+**Learning:** Using `requests.Session()` within a threaded application like the Scraper can drastically reduce TCP connection overhead by reusing sockets for successive requests to the same host. However, it is essential to initialize and teardown the `Session` inside the thread's run context (e.g., `run()` and its `finally` block) to prevent thread-safety issues and ensure sockets are cleanly released.
+**Action:** Always prefer `requests.Session()` over `requests.get()` for repetitive operations to the same domains, and manage its lifecycle tightly within the executing thread.
