@@ -29,6 +29,10 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # ⚡ Bolt Optimization: Use a Session object for connection pooling.
+        # This reuses the underlying TCP connection and drastically reduces
+        # network overhead (especially TLS handshakes) for repeated requests to the same domain.
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +40,7 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            self.session.close() # Always close the session in the finally block
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -73,7 +78,7 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
