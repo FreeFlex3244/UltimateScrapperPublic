@@ -14,7 +14,8 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(*args, **kwargs):
+            url = args[0] if args else kwargs.get('url')
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -44,6 +45,39 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.db.add_file.called)
         self.assertEqual(self.scraper.db.add_file.call_count, 2)
 
+    @patch('src.scraper.requests.get')
+    @patch('src.scraper.is_safe_url')
+    def test_redirect_handling(self, mock_is_safe_url, mock_get):
+        # Allow all URLs to be safe in this test
+        mock_is_safe_url.return_value = True
+
+        def side_effect(*args, **kwargs):
+            url = args[0] if args else kwargs.get('url')
+            mock_response = MagicMock()
+
+            if url == "http://example.com":
+                mock_response.status_code = 301
+                mock_response.headers = {'Location': 'http://example.com/redirected'}
+                mock_response.content = b''
+            elif url == "http://example.com/redirected":
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = b'<a href="test.zip">Test file</a>'
+            else:
+                mock_response.status_code = 404
+                mock_response.content = b''
+
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        # Call crawl
+        self.scraper.crawl()
+
+        # Check that the redirect was followed and the file was added
+        self.assertTrue(self.scraper.db.add_file.called)
+        self.assertEqual(self.scraper.db.add_file.call_args[0][0], "test.zip")
+
         # Verify specific calls if needed
         # args: (filename, extension, url, source_url, depth)
         # call_args_list[0] -> file.zip
@@ -56,7 +90,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
