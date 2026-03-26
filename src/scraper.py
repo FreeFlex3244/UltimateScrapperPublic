@@ -53,11 +53,11 @@ class Scraper(threading.Thread):
 
     def crawl(self):
         # BFS
-        self.queue.append((self.start_url, 0))
+        self.queue.append((self.start_url, 0, 0))
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.popleft()
+            url, depth, redirect_count = self.queue.popleft()
             self.current_depth = depth
             self.current_url = url
 
@@ -67,13 +67,34 @@ class Scraper(threading.Thread):
             if depth > self.max_depth:
                 continue
 
+            if redirect_count > 5:
+                print(f"Skipping due to too many redirects: {url}")
+                continue
+
             if not is_safe_url(url):
                 print(f"Skipping unsafe URL: {url}")
                 continue
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                if 301 <= response.status_code <= 308:
+                    location = response.headers.get('Location')
+                    if location:
+                        full_redirect_url = urljoin(url, location)
+                        # Normalize URL
+                        parsed_redirect = urlparse(full_redirect_url)
+                        clean_redirect_url = parsed_redirect.scheme + "://" + parsed_redirect.netloc + parsed_redirect.path
+                        if parsed_redirect.query:
+                            clean_redirect_url += "?" + parsed_redirect.query
+
+                        if is_safe_url(clean_redirect_url):
+                            self.queue.append((clean_redirect_url, depth, redirect_count + 1))
+                        else:
+                            print(f"Skipping unsafe redirect URL: {clean_redirect_url}")
+                    continue
+
                 if response.status_code != 200:
                     continue
 
@@ -114,7 +135,7 @@ class Scraper(threading.Thread):
                         if depth < self.max_depth:
                             if parsed_full.netloc == urlparse(self.start_url).netloc:
                                 self.visited.add(clean_url)
-                                self.queue.append((clean_url, depth + 1))
+                                self.queue.append((clean_url, depth + 1, 0))
 
                 # Sleep slightly to be nice
                 time.sleep(0.1)
