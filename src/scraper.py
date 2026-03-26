@@ -29,6 +29,10 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # Use requests.Session() for connection pooling.
+        # This reuses TCP connections for requests to the same domain,
+        # eliminating repeated TCP/TLS handshake latency and significantly speeding up the crawl.
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +40,7 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            self.session.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -72,8 +77,8 @@ class Scraper(threading.Thread):
                 continue
 
             try:
-                # Fetch page
-                response = requests.get(url, timeout=10)
+                # Fetch page using the session object
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
