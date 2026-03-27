@@ -98,4 +98,8 @@ def clear_db():
     return jsonify({'status': 'success', 'message': 'Database cleared'})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # SECURE: Read FLASK_DEBUG and FLASK_HOST from environment to prevent exposing
+    # the Werkzeug debugger to the network, which is a critical RCE vulnerability.
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
+    app.run(debug=debug_mode, host=host, port=5000)
