@@ -10,7 +10,6 @@ class TestScraper(unittest.TestCase):
         self.scraper = Scraper("http://example.com", 2, "zip,iso")
         # Mock the database connection object
         self.scraper.db = MagicMock()
-        # Mock the session object
         self.scraper.session = MagicMock()
 
     def test_crawl_depth(self):
@@ -36,7 +35,7 @@ class TestScraper(unittest.TestCase):
 
         self.scraper.session.get.side_effect = side_effect
 
-        # Call crawl directly (bypassing run() which sets up DB and session)
+        # Call crawl directly (bypassing run() which sets up DB)
         # We manually set self.db in setUp
         self.scraper.crawl()
 
@@ -62,7 +61,7 @@ class TestScraper(unittest.TestCase):
         self.scraper.crawl()
 
         # Since stopped, it should check stop_event and exit immediately
-        # So session.get should NOT be called
+        # So requests.get should NOT be called
         self.assertFalse(self.scraper.session.get.called)
 
 if __name__ == '__main__':

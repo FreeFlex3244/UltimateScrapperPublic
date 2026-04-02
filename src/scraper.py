@@ -29,8 +29,7 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
-        # ⚡ Bolt Optimization: Use connection pooling (requests.Session) to reuse TCP connections,
-        # significantly reducing latency and overhead on repeated requests to the same domain.
+        # Initialize requests.Session() for connection pooling to improve scraping performance by reusing TCP connections
         self.session = requests.Session()
         try:
             self.crawl()
@@ -109,7 +108,7 @@ class Scraper(threading.Thread):
                         filename = os.path.basename(parsed_full.path)
                         self.db.add_file(filename, ext, clean_url, url, depth)
                         self.total_found += 1
-                        self.visited.add(clean_url) # Mark file as visited so we don't re-add
+                        self.visited.add(clean_url)  # Mark file as visited so we don't re-add
                     else:
                         # It's a potential directory/page to follow
                         # Only follow if:

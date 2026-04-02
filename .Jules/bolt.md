@@ -2,6 +2,6 @@
 **Learning:** The scraper used a standard Python list for its BFS queue with `pop(0)`, which is an O(n) operation. As the crawl queue grows, this creates a hidden quadratic bottleneck purely in queue management, separate from network latency.
 **Action:** Always inspect queue implementations in recursive/iterative processing loops. Replaced with `collections.deque` for O(1) pops.
 
-## 2024-05-24 - Connection Pooling in Scraper Threads
-**Learning:** The scraper was creating a new TCP connection for every recursive fetch via `requests.get()`. Because scraping heavily queries the same domain repeatedly, connection overhead (TCP handshake, TLS negotiation) was a major bottleneck. However, `requests.Session()` is not thread-safe if shared across multiple scraper threads.
-**Action:** Use `requests.Session()` to enable connection pooling for recursive requests, but instantiate it *inside* the thread's `run()` method to ensure thread safety and avoid bleeding sockets.
+## 2024-05-23 - Connection Pooling for Scraper
+**Learning:** Re-opening TCP connections for every HTTP request in a scraper introduces significant latency. The requests library does not pool connections across different `requests.get()` calls.
+**Action:** Use `requests.Session()` within the scraper's execution thread to enable connection pooling, which keeps TCP connections alive and reuses them for subsequent requests to the same host, reducing overhead.
