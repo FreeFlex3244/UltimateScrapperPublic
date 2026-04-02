@@ -29,6 +29,8 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # ⚡ Bolt: Initialize session to pool TCP connections for faster HTTP requests
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +38,7 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            self.session.close() # Clean up sockets
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -73,7 +76,8 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                # ⚡ Bolt: Re-use TCP connections via Session object
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
