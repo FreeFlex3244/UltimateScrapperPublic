@@ -29,6 +29,9 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # ⚡ Bolt: Use requests.Session() to enable connection pooling and reduce network latency
+        # by reusing TCP connections and TLS sessions across multiple requests.
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
@@ -36,6 +39,8 @@ class Scraper(threading.Thread):
             self.status = f"Error: {e}"
         finally:
             self.db.close()
+            if hasattr(self, 'session'):
+                self.session.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
             else:
@@ -73,7 +78,7 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
@@ -105,7 +110,7 @@ class Scraper(threading.Thread):
                         filename = os.path.basename(parsed_full.path)
                         self.db.add_file(filename, ext, clean_url, url, depth)
                         self.total_found += 1
-                        self.visited.add(clean_url) # Mark file as visited so we don't re-add
+                        self.visited.add(clean_url)  # Mark file as visited so we don't re-add
                     else:
                         # It's a potential directory/page to follow
                         # Only follow if:
