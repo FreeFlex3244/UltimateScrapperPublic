@@ -90,7 +90,7 @@ def search_files():
 def clear_db():
     global scraper_thread
     if scraper_thread and scraper_thread.is_alive():
-         return jsonify({'status': 'error', 'message': 'Cannot clear DB while scraper is running'}), 400
+        return jsonify({'status': 'error', 'message': 'Cannot clear DB while scraper is running'}), 400
 
     db = Database(DB_NAME)
     db.clear_database()
