@@ -10,11 +10,12 @@ class TestScraper(unittest.TestCase):
         self.scraper = Scraper("http://example.com", 2, "zip,iso")
         # Mock the database connection object
         self.scraper.db = MagicMock()
+        # Mock the session object
+        self.scraper.session = MagicMock()
 
-    @patch('src.scraper.requests.get')
-    def test_crawl_depth(self, mock_get):
+    def test_crawl_depth(self):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -33,7 +34,7 @@ class TestScraper(unittest.TestCase):
                 mock_response.content = b''
             return mock_response
 
-        mock_get.side_effect = side_effect
+        self.scraper.session.get.side_effect = side_effect
 
         # Call crawl directly (bypassing run() which sets up DB)
         # We manually set self.db in setUp
@@ -49,8 +50,7 @@ class TestScraper(unittest.TestCase):
         # call_args_list[0] -> file.zip
         # call_args_list[1] -> file2.iso
 
-    @patch('src.scraper.requests.get')
-    def test_stop(self, mock_get):
+    def test_stop(self):
         # Set stop event
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
@@ -62,8 +62,8 @@ class TestScraper(unittest.TestCase):
         self.scraper.crawl()
 
         # Since stopped, it should check stop_event and exit immediately
-        # So requests.get should NOT be called
-        self.assertFalse(mock_get.called)
+        # So self.session.get should NOT be called
+        self.assertFalse(self.scraper.session.get.called)
 
 if __name__ == '__main__':
     unittest.main()
