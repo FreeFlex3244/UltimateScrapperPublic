@@ -4,10 +4,10 @@ from urllib.parse import urljoin, urlparse
 import threading
 import time
 import os
-import sqlite3
 from collections import deque
 from src.database import Database
 from src.security import is_safe_url
+
 
 class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
@@ -29,12 +29,15 @@ class Scraper(threading.Thread):
         self.status = "Running"
         # Initialize DB connection within the thread
         self.db = Database(self.db_name)
+        # Initialize session for connection pooling within the thread
+        self.session = requests.Session()
         try:
             self.crawl()
         except Exception as e:
             print(f"Scraper error: {e}")
             self.status = f"Error: {e}"
         finally:
+            self.session.close()
             self.db.close()
             if not self.stop_event.is_set():
                 self.status = "Completed"
@@ -73,7 +76,10 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                # ⚡ Bolt: Use requests.Session() to pool connections and reuse TCP
+                # sockets, significantly improving scraper speed on repeated requests
+                # to the same domains.
+                response = self.session.get(url, timeout=10)
                 if response.status_code != 200:
                     continue
 
