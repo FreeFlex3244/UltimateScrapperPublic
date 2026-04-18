@@ -53,11 +53,11 @@ class Scraper(threading.Thread):
 
     def crawl(self):
         # BFS
-        self.queue.append((self.start_url, 0))
+        self.queue.append((self.start_url, 0, 0))
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.popleft()
+            url, depth, redirect_count = self.queue.popleft()
             self.current_depth = depth
             self.current_url = url
 
@@ -73,7 +73,20 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                # Handle redirects to prevent SSRF bypass
+                if response.status_code in (301, 302, 303, 307, 308):
+                    if redirect_count < 5:
+                        location = response.headers.get('Location')
+                        if location:
+                            new_url = urljoin(url, location)
+                            if is_safe_url(new_url):
+                                self.queue.append((new_url, depth, redirect_count + 1))
+                            else:
+                                print(f"Skipping unsafe redirect URL: {new_url}")
+                    continue
+
                 if response.status_code != 200:
                     continue
 
@@ -105,7 +118,7 @@ class Scraper(threading.Thread):
                         filename = os.path.basename(parsed_full.path)
                         self.db.add_file(filename, ext, clean_url, url, depth)
                         self.total_found += 1
-                        self.visited.add(clean_url) # Mark file as visited so we don't re-add
+                        self.visited.add(clean_url)  # Mark file as visited so we don't re-add
                     else:
                         # It's a potential directory/page to follow
                         # Only follow if:
@@ -114,7 +127,7 @@ class Scraper(threading.Thread):
                         if depth < self.max_depth:
                             if parsed_full.netloc == urlparse(self.start_url).netloc:
                                 self.visited.add(clean_url)
-                                self.queue.append((clean_url, depth + 1))
+                                self.queue.append((clean_url, depth + 1, 0))
 
                 # Sleep slightly to be nice
                 time.sleep(0.1)
