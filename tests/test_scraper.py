@@ -4,6 +4,7 @@ import threading
 import time
 from src.scraper import Scraper
 
+
 class TestScraper(unittest.TestCase):
     def setUp(self):
         # Initialize Scraper with dummy values
@@ -14,7 +15,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=False):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -27,7 +28,8 @@ class TestScraper(unittest.TestCase):
                 # Depth 1 -> Links to Depth 2
                 mock_response.content = b'<a href="page2.html">Page 2</a><a href="file2.iso">File 2</a>'
             elif url == "http://example.com/page2.html":
-                # Depth 2 -> Links to Depth 3 (should not be processed further due to max_depth=2)
+                # Depth 2 -> Links to Depth 3 (should not be processed further
+                # due to max_depth=2)
                 mock_response.content = b'<a href="page3.html">Page 3</a>'
             else:
                 mock_response.content = b''
@@ -56,7 +58,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
@@ -64,6 +66,7 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
 
 if __name__ == '__main__':
     unittest.main()
