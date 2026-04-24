@@ -9,13 +9,15 @@ from collections import deque
 from src.database import Database
 from src.security import is_safe_url
 
+
 class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
         super().__init__()
         self.start_url = start_url
         self.max_depth = int(max_depth)
         # Clean extensions list
-        self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
+        self.extensions = [ext.lower().strip().lstrip('.')
+                           for ext in extensions.split(',') if ext.strip()]
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
@@ -53,11 +55,14 @@ class Scraper(threading.Thread):
 
     def crawl(self):
         # BFS
-        self.queue.append((self.start_url, 0))
+        self.queue.append((self.start_url, 0, 0))  # url, depth, redirect_count
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.popleft()
+            item = self.queue.popleft()
+            url, depth = item[0], item[1]
+            redirect_count = item[2] if len(item) > 2 else 0
+
             self.current_depth = depth
             self.current_url = url
 
@@ -73,7 +78,17 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get('Location')
+                    if location and redirect_count < 5:
+                        next_url = urljoin(url, location)
+                        if is_safe_url(next_url):
+                            self.queue.append(
+                                (next_url, depth, redirect_count + 1))
+                    continue
+
                 if response.status_code != 200:
                     continue
 
@@ -105,14 +120,16 @@ class Scraper(threading.Thread):
                         filename = os.path.basename(parsed_full.path)
                         self.db.add_file(filename, ext, clean_url, url, depth)
                         self.total_found += 1
-                        self.visited.add(clean_url) # Mark file as visited so we don't re-add
+                        # Mark file as visited so we don't re-add
+                        self.visited.add(clean_url)
                     else:
                         # It's a potential directory/page to follow
                         # Only follow if:
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == urlparse(
+                                    self.start_url).netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
