@@ -53,11 +53,11 @@ class Scraper(threading.Thread):
 
     def crawl(self):
         # BFS
-        self.queue.append((self.start_url, 0))
+        self.queue.append((self.start_url, 0, 0))
         self.visited.add(self.start_url)
 
         while self.queue and not self.stop_event.is_set():
-            url, depth = self.queue.popleft()
+            url, depth, redirect_count = self.queue.popleft()
             self.current_depth = depth
             self.current_url = url
 
@@ -73,7 +73,19 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=10, allow_redirects=False)
+
+                # Handle redirects manually to validate destination against SSRF
+                if response.status_code in (301, 302, 303, 307, 308):
+                    if redirect_count < 5:
+                        location = response.headers.get('Location')
+                        if location:
+                            redirect_url = urljoin(url, location)
+                            if redirect_url not in self.visited:
+                                self.queue.append((redirect_url, depth, redirect_count + 1))
+                                self.visited.add(redirect_url)
+                    continue
+
                 if response.status_code != 200:
                     continue
 
@@ -114,7 +126,7 @@ class Scraper(threading.Thread):
                         if depth < self.max_depth:
                             if parsed_full.netloc == urlparse(self.start_url).netloc:
                                 self.visited.add(clean_url)
-                                self.queue.append((clean_url, depth + 1))
+                                self.queue.append((clean_url, depth + 1, 0))
 
                 # Sleep slightly to be nice
                 time.sleep(0.1)
