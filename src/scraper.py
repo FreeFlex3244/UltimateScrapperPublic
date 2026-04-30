@@ -9,13 +9,19 @@ from collections import deque
 from src.database import Database
 from src.security import is_safe_url
 
+
 class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
         super().__init__()
         self.start_url = start_url
         self.max_depth = int(max_depth)
         # Clean extensions list
-        self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
+        self.extensions = [ext.lower().strip().lstrip('.')
+                           for ext in extensions.split(',') if ext.strip()]
+        # Performance: Precompute extensions tuple for O(1) matching
+        self.extensions_tuple = tuple(f".{ext}" for ext in self.extensions)
+        # Performance: Precompute start netloc to avoid repeated urlparsing
+        self.start_netloc = urlparse(self.start_url).netloc
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
@@ -46,9 +52,11 @@ class Scraper(threading.Thread):
 
     def is_target_file(self, url):
         path = urlparse(url).path
-        for ext in self.extensions:
-            if path.lower().endswith(f".{ext}"):
-                return True, ext
+        path_lower = path.lower()
+        if path_lower.endswith(self.extensions_tuple):
+            for ext in self.extensions:
+                if path_lower.endswith(f".{ext}"):
+                    return True, ext
         return False, None
 
     def crawl(self):
@@ -105,14 +113,15 @@ class Scraper(threading.Thread):
                         filename = os.path.basename(parsed_full.path)
                         self.db.add_file(filename, ext, clean_url, url, depth)
                         self.total_found += 1
-                        self.visited.add(clean_url) # Mark file as visited so we don't re-add
+                        # Mark file as visited so we don't re-add
+                        self.visited.add(clean_url)
                     else:
                         # It's a potential directory/page to follow
                         # Only follow if:
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
