@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -48,6 +48,25 @@ class TestScraper(unittest.TestCase):
         # args: (filename, extension, url, source_url, depth)
         # call_args_list[0] -> file.zip
         # call_args_list[1] -> file2.iso
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect_handling(self, mock_get):
+        # Test that unsafe redirects are not enqueued
+        def side_effect(url, **kwargs):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 302
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            else:
+                mock_response.status_code = 404
+            return mock_response
+
+        mock_get.side_effect = side_effect
+        self.scraper.crawl()
+
+        # Verify it requested example.com but not 127.0.0.1
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(mock_get.call_args[0][0], "http://example.com")
 
     @patch('src.scraper.requests.get')
     def test_stop(self, mock_get):
