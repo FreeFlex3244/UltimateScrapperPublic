@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=True):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -56,7 +56,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
@@ -64,6 +64,22 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect(self, mock_get):
+        def side_effect(url, timeout=10, allow_redirects=True):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 302
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            else:
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = b''
+            return mock_response
+        mock_get.side_effect = side_effect
+        self.scraper.crawl()
+        mock_get.assert_called_once_with('http://example.com', timeout=10, allow_redirects=False)
 
 if __name__ == '__main__':
     unittest.main()
