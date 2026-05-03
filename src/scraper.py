@@ -13,6 +13,7 @@ class Scraper(threading.Thread):
     def __init__(self, start_url, max_depth, extensions, db_name='files.db'):
         super().__init__()
         self.start_url = start_url
+        self.start_netloc = urlparse(self.start_url).netloc  # Performance optimization: precompute static parsing
         self.max_depth = int(max_depth)
         # Clean extensions list
         self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
@@ -112,7 +113,7 @@ class Scraper(threading.Thread):
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
