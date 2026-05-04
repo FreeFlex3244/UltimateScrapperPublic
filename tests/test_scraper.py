@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -50,13 +50,33 @@ class TestScraper(unittest.TestCase):
         # call_args_list[1] -> file2.iso
 
     @patch('src.scraper.requests.get')
+    def test_ssrf_redirect_handled(self, mock_get):
+        def side_effect(url, **kwargs):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 302
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            else:
+                mock_response.status_code = 200
+            mock_response.content = b''
+            return mock_response
+
+        mock_get.side_effect = side_effect
+        self.scraper.crawl()
+
+        # Check that we didn't add any files or continue to queue the internal ip
+        self.assertFalse(self.scraper.db.add_file.called)
+        # Initial request should happen, but redirect is blocked
+        self.assertEqual(mock_get.call_count, 1)
+
+    @patch('src.scraper.requests.get')
     def test_stop(self, mock_get):
         # Set stop event
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
