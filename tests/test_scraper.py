@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=True):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -56,7 +56,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
@@ -64,6 +64,43 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect(self, mock_get):
+        def side_effect(url, timeout=10, allow_redirects=True):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 301
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            else:
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = b'Should not reach here'
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        # We need to clear the visited set because the initial URL is added
+        # in the crawler setup and we are re-injecting it
+        self.scraper.visited.clear()
+
+        # Don't let the crawler start on its own start_url since we're seeding it
+        # Actually it's better to just clear the queue after it appends the start_url
+
+        # We need to let the crawler start and it will append its start_url
+        # Since we use "http://example.com" as start_url, it adds it to queue and visited.
+        # But we need our test redirect queue to take precedence
+
+        # Instead, let's just let it run normally, but the mock intercepts it
+        self.scraper.start_url = "http://example.com"
+        self.scraper.queue.clear()
+        self.scraper.visited.clear()
+
+        self.scraper.crawl()
+
+        # It should call get() once for http://example.com, get a 301,
+        # try to redirect to http://127.0.0.1/admin, fail is_safe_url, and not call get() again.
+        self.assertEqual(mock_get.call_count, 1)
 
 if __name__ == '__main__':
     unittest.main()
