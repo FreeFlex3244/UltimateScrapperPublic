@@ -16,6 +16,8 @@ class Scraper(threading.Thread):
         self.max_depth = int(max_depth)
         # Clean extensions list
         self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
+        self.formatted_extensions = tuple(f".{ext}" for ext in self.extensions) # Precompute for O(1) checks
+        self.start_netloc = urlparse(start_url).netloc # Precompute to avoid redundant parsing
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
@@ -45,10 +47,11 @@ class Scraper(threading.Thread):
         self.stop_event.set()
 
     def is_target_file(self, url):
-        path = urlparse(url).path
-        for ext in self.extensions:
-            if path.lower().endswith(f".{ext}"):
-                return True, ext
+        path = urlparse(url).path.lower()
+        if path.endswith(self.formatted_extensions):
+            for ext in self.extensions:
+                if path.endswith(f".{ext}"):
+                    return True, ext
         return False, None
 
     def crawl(self):
@@ -112,7 +115,7 @@ class Scraper(threading.Thread):
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
