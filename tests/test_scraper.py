@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=True):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -56,7 +56,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
@@ -64,6 +64,26 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect_bypass(self, mock_get):
+        # Mock a 302 redirect pointing to a private IP
+        mock_response = MagicMock()
+        mock_response.status_code = 302
+        mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+        mock_get.return_value = mock_response
+
+        # Clear visited set, reseed the queue manually
+        # Note: crawl() appends start_url to the queue again internally, so we don't need to append it.
+        # We just need to clear visited and let crawl() run normally.
+        self.scraper.visited.clear()
+        self.scraper.queue.clear()
+
+        self.scraper.crawl()
+
+        # Should only fetch http://example.com, and refuse to follow the redirect
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertFalse(self.scraper.db.add_file.called)
 
 if __name__ == '__main__':
     unittest.main()
