@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=False):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -50,13 +50,31 @@ class TestScraper(unittest.TestCase):
         # call_args_list[1] -> file2.iso
 
     @patch('src.scraper.requests.get')
+    def test_crawl_redirect(self, mock_get):
+        # Mock a 301 response that redirects to a local IP
+        mock_response = MagicMock()
+        mock_response.status_code = 301
+        mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+        mock_get.return_value = mock_response
+
+        # Run crawl
+        self.scraper.crawl()
+
+        # The initial request to start_url should be made
+        self.assertEqual(mock_get.call_count, 1)
+
+        # The redirect should be blocked by is_safe_url, leaving the queue empty
+        self.assertEqual(len(self.scraper.queue), 0)
+
+    @patch('src.scraper.requests.get')
     def test_stop(self, mock_get):
         # Set stop event
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
 
-        # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        # Clear state to prevent duplicate start_url queuing from crawl()
+        self.scraper.queue.clear()
+        self.scraper.visited.clear()
 
         # Run crawl
         self.scraper.crawl()
