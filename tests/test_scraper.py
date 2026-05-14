@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=False):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -50,13 +50,35 @@ class TestScraper(unittest.TestCase):
         # call_args_list[1] -> file2.iso
 
     @patch('src.scraper.requests.get')
+    def test_redirect_handling(self, mock_get):
+        # Test that SSRF via redirect to internal IP is prevented
+        self.scraper.visited.clear()
+        self.scraper.queue.clear()
+
+        def side_effect(url, timeout=10, allow_redirects=False):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 301
+                mock_response.headers = {'Location': 'http://169.254.169.254/latest/meta-data'}
+            else:
+                mock_response.status_code = 404
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        self.scraper.crawl()
+
+        # requests.get should only be called once for the start URL, not for the private IP
+        mock_get.assert_called_once_with("http://example.com", timeout=10, allow_redirects=False)
+
+    @patch('src.scraper.requests.get')
     def test_stop(self, mock_get):
         # Set stop event
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
 
-        # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.visited.clear()
+        self.scraper.queue.clear()
 
         # Run crawl
         self.scraper.crawl()
