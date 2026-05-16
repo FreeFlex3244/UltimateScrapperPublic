@@ -16,6 +16,12 @@ class Scraper(threading.Thread):
         self.max_depth = int(max_depth)
         # Clean extensions list
         self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
+
+        # PERFORMANCE: Precompute static netloc to avoid repeated parsing in loops
+        self.start_netloc = urlparse(self.start_url).netloc
+        # PERFORMANCE: Precompute formatted extensions tuple for O(1) C-level endswith checking
+        self.extensions_tuple = tuple(f".{ext}" for ext in self.extensions)
+
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
@@ -45,10 +51,12 @@ class Scraper(threading.Thread):
         self.stop_event.set()
 
     def is_target_file(self, url):
-        path = urlparse(url).path
-        for ext in self.extensions:
-            if path.lower().endswith(f".{ext}"):
-                return True, ext
+        path = urlparse(url).path.lower()
+        # PERFORMANCE: Fast O(1) check using C-level endswith before matching specific extensions
+        if path.endswith(self.extensions_tuple):
+            for ext in self.extensions:
+                if path.endswith(f".{ext}"):
+                    return True, ext
         return False, None
 
     def crawl(self):
@@ -112,7 +120,8 @@ class Scraper(threading.Thread):
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            # PERFORMANCE: Use precomputed netloc instead of parsing on every URL
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
