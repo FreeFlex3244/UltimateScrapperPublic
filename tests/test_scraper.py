@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -37,6 +37,8 @@ class TestScraper(unittest.TestCase):
 
         # Call crawl directly (bypassing run() which sets up DB)
         # We manually set self.db in setUp
+        self.scraper.visited.clear()
+        self.scraper.queue.clear()
         self.scraper.crawl()
 
         # Check that add_file was called
@@ -55,8 +57,10 @@ class TestScraper(unittest.TestCase):
         self.scraper.stop()
         self.assertTrue(self.scraper.stop_event.is_set())
 
+        self.scraper.visited.clear()
+        self.scraper.queue.clear()
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
