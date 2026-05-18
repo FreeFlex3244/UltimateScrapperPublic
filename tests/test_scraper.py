@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, timeout=10, allow_redirects=False):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -56,7 +56,7 @@ class TestScraper(unittest.TestCase):
         self.assertTrue(self.scraper.stop_event.is_set())
 
         # Manually seed queue to see if it processes anything
-        self.scraper.queue.append(("http://example.com", 0))
+        self.scraper.queue.append(("http://example.com", 0, 0))
 
         # Run crawl
         self.scraper.crawl()
@@ -64,6 +64,48 @@ class TestScraper(unittest.TestCase):
         # Since stopped, it should check stop_event and exit immediately
         # So requests.get should NOT be called
         self.assertFalse(mock_get.called)
+
+    @patch('src.scraper.requests.get')
+    def test_ssrf_redirect_prevention(self, mock_get):
+        def side_effect(url, timeout=10, allow_redirects=False):
+            mock_response = MagicMock()
+            if url == "http://example.com":
+                mock_response.status_code = 301
+                mock_response.headers = {'Location': 'http://127.0.0.1/admin'}
+            elif url == "http://example.com/safe":
+                mock_response.status_code = 301
+                mock_response.headers = {'Location': 'http://example.com/target'}
+            else:
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = b''
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        # Clear state
+        self.scraper.queue.clear()
+        self.scraper.visited.clear()
+
+        # Seed with start URL
+        self.scraper.queue.append(("http://example.com", 0, 0))
+        self.scraper.visited.add("http://example.com")
+
+        self.scraper.crawl()
+
+        # Verify 127.0.0.1 was not added to queue/visited
+        self.assertNotIn("http://127.0.0.1/admin", self.scraper.visited)
+
+        # Test safe redirect
+        self.scraper.queue.clear()
+        self.scraper.visited.clear()
+        self.scraper.queue.append(("http://example.com/safe", 0, 0))
+        self.scraper.visited.add("http://example.com/safe")
+
+        self.scraper.crawl()
+
+        # We need to assert that the mock_get was called with the target URL
+        mock_get.assert_any_call("http://example.com/target", timeout=10, allow_redirects=False)
 
 if __name__ == '__main__':
     unittest.main()
