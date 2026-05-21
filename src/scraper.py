@@ -16,6 +16,8 @@ class Scraper(threading.Thread):
         self.max_depth = int(max_depth)
         # Clean extensions list
         self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
+        # Precompute formatted extensions for O(1) C-level endswith checks
+        self.formatted_extensions = tuple(f".{ext}" for ext in self.extensions)
         self.db_name = db_name
         self.stop_event = threading.Event()
         self.visited = set()
@@ -45,10 +47,13 @@ class Scraper(threading.Thread):
         self.stop_event.set()
 
     def is_target_file(self, url):
-        path = urlparse(url).path
-        for ext in self.extensions:
-            if path.lower().endswith(f".{ext}"):
-                return True, ext
+        path = urlparse(url).path.lower()
+        # Fast path: O(1) C-level check for majority of non-matching URLs
+        if path.endswith(self.formatted_extensions):
+            # Slow path: find which specific extension matched
+            for ext in self.extensions:
+                if path.endswith(f".{ext}"):
+                    return True, ext
         return False, None
 
     def crawl(self):
