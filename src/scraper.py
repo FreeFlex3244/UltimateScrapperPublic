@@ -14,6 +14,8 @@ class Scraper(threading.Thread):
         super().__init__()
         self.start_url = start_url
         self.max_depth = int(max_depth)
+        # Precompute the starting network location to avoid redundant urlparse calls in the crawl loop
+        self.start_netloc = urlparse(start_url).netloc
         # Clean extensions list
         self.extensions = [ext.lower().strip().lstrip('.') for ext in extensions.split(',') if ext.strip()]
         self.db_name = db_name
@@ -112,7 +114,7 @@ class Scraper(threading.Thread):
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
