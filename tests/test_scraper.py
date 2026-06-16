@@ -14,7 +14,7 @@ class TestScraper(unittest.TestCase):
     @patch('src.scraper.requests.get')
     def test_crawl_depth(self, mock_get):
         # Setup mock response content
-        def side_effect(url, timeout=10):
+        def side_effect(url, **kwargs):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {'Content-Type': 'text/html'}
@@ -43,6 +43,9 @@ class TestScraper(unittest.TestCase):
         # We expect file.zip and file2.iso to be added
         self.assertTrue(self.scraper.db.add_file.called)
         self.assertEqual(self.scraper.db.add_file.call_count, 2)
+
+        # Verify that requests.get was called with allow_redirects=False to prevent SSRF bypass
+        mock_get.assert_any_call('http://example.com', timeout=10, allow_redirects=False)
 
         # Verify specific calls if needed
         # args: (filename, extension, url, source_url, depth)
