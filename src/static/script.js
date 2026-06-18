@@ -160,22 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         files.forEach(file => {
             const tr = document.createElement('tr');
-            const safeFilename = file.filename.replace(/"/g, '&quot;');
-            tr.innerHTML = `
-                <td><a href="${file.url}" target="_blank" class="text-light text-decoration-none">${file.filename}</a></td>
-                <td><span class="badge bg-secondary">${file.extension}</span></td>
-                <td>${file.depth}</td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-warning copy-btn" data-url="${file.url}" aria-label="Copy link for ${safeFilename}" title="Copy link">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <a href="${file.url}" class="btn btn-sm btn-primary" download aria-label="Download ${safeFilename}" title="Download file">
-                        <i class="fas fa-download"></i>
-                    </a>
-                </td>
-            `;
-            resultsBody.appendChild(tr);
-        });
 
             // --- Filename Cell ---
             const tdFilename = document.createElement('td');
