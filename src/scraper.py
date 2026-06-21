@@ -73,7 +73,8 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                # Prevent SSRF via HTTP redirects bypassing is_safe_url
+                response = requests.get(url, timeout=10, allow_redirects=False)
                 if response.status_code != 200:
                     continue
 
