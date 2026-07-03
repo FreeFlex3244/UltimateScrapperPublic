@@ -73,7 +73,8 @@ class Scraper(threading.Thread):
 
             try:
                 # Fetch page
-                response = requests.get(url, timeout=10)
+                # Security: Disable redirects to prevent bypassing the is_safe_url check via HTTP 3xx responses
+                response = requests.get(url, timeout=10, allow_redirects=False)
                 if response.status_code != 200:
                     continue
 
