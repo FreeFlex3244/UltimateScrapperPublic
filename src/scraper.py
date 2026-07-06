@@ -24,6 +24,9 @@ class Scraper(threading.Thread):
         self.total_found = 0
         self.current_depth = 0
         self.current_url = ""
+        # ⚡ Bolt Performance Optimization: Precompute start URL netloc
+        # to avoid O(N) redundant urlparse calls per link during crawl loop
+        self.start_netloc = urlparse(self.start_url).netloc
 
     def run(self):
         self.status = "Running"
@@ -112,7 +115,7 @@ class Scraper(threading.Thread):
                         # 1. Depth < Max Depth
                         # 2. Same domain (to contain scope)
                         if depth < self.max_depth:
-                            if parsed_full.netloc == urlparse(self.start_url).netloc:
+                            if parsed_full.netloc == self.start_netloc:
                                 self.visited.add(clean_url)
                                 self.queue.append((clean_url, depth + 1))
 
